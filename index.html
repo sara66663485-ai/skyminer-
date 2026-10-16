@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SkyMiner - اسکای ماینر</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- صفحه لودینگ 3 ثانیه‌ای با حلقه چرخان -->
+    <div id="splash-screen">
+        <div class="splash-container">
+            <div class="spinner-ring"></div>
+            <img src="coin1.png" alt="SkyMiner Logo" class="splash-logo">
+        </div>
+        <div class="splash-title">SkyMiner</div>
+        <div class="splash-subtitle">...Connecting to the SkyMiner network</div>
+    </div>
+
+    <!-- هدر بالای صفحه -->
+    <div class="top-bar">
+        <div class="badge-level" id="topLevel">سطح 1</div>
+        <div class="top-balance">
+            <img src="coin1.png" alt="Coin">
+            <span id="topScore">0.00</span>
+        </div>
+    </div>
+
+    <!-- ۱. تب استخراج (Mining) -->
+    <div id="page-mining" class="page active">
+        <div class="miner-card">
+            <div class="miner-header">
+                <span class="timer-badge">🟢 در حال استخراج</span>
+                <span class="miner-title" id="minerLevelName">ماینر سطح 1</span>
+            </div>
+            
+            <div class="coin-wrapper">
+                <div class="coin-ring"></div>
+                <img src="coin1.png" alt="Coin" class="coin-img">
+            </div>
+
+            <div class="pending-label">پاداش استخراج دریافت‌نشده</div>
+            <div class="pending-amount" id="pendingDisplay">0.000000</div>
+            <div class="usd-estimate" id="usdValue">≈ $0.0000</div>
+
+            <button class="btn-claim" onclick="claimMiningReward()">دریافت پاداش استخراج</button>
+        </div>
+
+        <div class="info-list">
+            <div class="info-item">
+                <label>سرعت استخراج ساعتی</label>
+                <span id="hourlyRateDisplay">0.20 سکه/ساعت</span>
+            </div>
+            <div class="info-item">
+                <label>تولید ۲۴ ساعته (حداکثر)</label>
+                <span id="dailyMaxDisplay">4.80 سکه</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ۲. تب ماینرها (لیست کامل سطوح و پیشرفت - مطابق عکس مرجع) -->
+    <div id="page-miners" class="page">
+        <div class="card-panel">
+            <h3 id="minerStoreTitle">فروشگاه ماینرها ⚡</h3>
+            <p style="font-size: 12px; color: #9ca3af; margin-bottom: 10px;">
+                سطوح به صورت خودکار از طریق اثبات نگهداری (Hold) باز می‌شوند. کافی است سکه کافی در حساب خود نگه دارید.
+            </p>
+            
+            <div class="progress-info">
+                <span id="progressLabel">پیشرفت تا سطح بعدی</span>
+                <span id="progressPercent">0%</span>
+            </div>
+            <div class="progress-box">
+                <div class="progress-fill" id="levelProgressFill"></div>
+            </div>
+        </div>
+
+        <!-- لیست سطوح (طراحی مشابه MRG Miner) -->
+        <div class="levels-header">
+            <span>سطوح استخراج (LEVELS)</span>
+        </div>
+        <div class="levels-list" id="levelsContainer">
+            <!-- آیتم‌های سطوح توسط app.js ساخته می‌شوند -->
+        </div>
+    </div>
+
+    <!-- ۳. تب وظایف -->
+    <div id="page-tasks" class="page">
+        <h3 class="page-title">🏆 پاداش‌ها و وظایف</h3>
+        <div class="card-panel">
+            <h3>حضور روزانه</h3>
+            <p>هر روز سر بزنید و ۱۰ سکه پاداش بگیرید.</p>
+            <button class="btn-action" onclick="claimDailyReward()">دریافت پاداش روزانه (+10 سکه)</button>
+        </div>
+    </div>
+
+    <!-- ۴. تب دوستان -->
+    <div id="page-friends" class="page">
+        <h3 class="page-title">👥 دعوت از دوستان</h3>
+        <div class="card-panel">
+            <h3>پاداش ۱۰۰ سکه برای هر دعوت</h3>
+            <p>با دعوت از هر دوست، ۱۰۰ سکه پاداش آنی دریافت کنید!</p>
+            <button class="btn-action" onclick="copyRefLink()">کپی لینک اختصاصی دعوت 🔗</button>
+        </div>
+    </div>
+
+    <!-- ۵. تب کیف پول -->
+    <div id="page-wallet" class="page">
+        <h3 class="page-title">👛 کیف پول</h3>
+        <div class="card-panel" style="text-align: center;">
+            <p style="color: #9ca3af; margin:0;">موجودی کل درون‌برنامه:</p>
+            <h2 id="walletScore" style="color: #ffd700; margin: 6px 0; font-size: 34px;">0.00</h2>
+            <p style="color: #10b981; font-size: 13px; margin-bottom: 15px;" id="walletUsd">≈ $0.00 دلار (هر ۱۰۰۰ سکه = ۴ دلار)</p>
+            <button class="btn-action" onclick="alert('قابلیت برداشت به زودی فعال می‌شود!')">برداشت سکه‌ها 🚀</button>
+        </div>
+    </div>
+
+    <!-- منوی پایین (۵ تب) -->
+    <div class="nav-bar">
+        <button class="nav-btn active" onclick="switchPage('mining', this)"><span>⛏️</span>استخراج</button>
+        <button class="nav-btn" onclick="switchPage('miners', this)"><span>⚡</span>ماینرها</button>
+        <button class="nav-btn" onclick="switchPage('tasks', this)"><span>🏆</span>وظایف</button>
+        <button class="nav-btn" onclick="switchPage('friends', this)"><span>👥</span>دوستان</button>
+        <button class="nav-btn" onclick="switchPage('wallet', this)"><span>👛</span>کیف پول</button>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
