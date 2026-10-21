@@ -1,0 +1,1313 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl" id="htmlRoot">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SkyMiner - اسکای ماینر</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            background: #090e17;
+            color: #ffffff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 12px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            overflow-x: hidden;
+            padding-bottom: 85px;
+        }
+
+        /* لودینگ اولیه */
+        #splash-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #090e17; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; z-index: 99999;
+            transition: opacity 0.6s ease;
+        }
+        .splash-container {
+            position: relative; width: 150px; height: 150px;
+            display: flex; align-items: center; justify-content: center; margin-bottom: 25px;
+        }
+        .splash-logo {
+            width: 120px; height: 120px; border-radius: 50%;
+            object-fit: cover; z-index: 2; box-shadow: 0 0 25px rgba(255, 215, 0, 0.4);
+        }
+        .spinner-ring {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            border: 4px solid rgba(255, 255, 255, 0.08);
+            border-top: 4px solid #00d2ff; border-right: 4px solid #00ffcc;
+            border-radius: 50%; animation: spin 1.2s linear infinite; z-index: 1;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .splash-title { font-size: 26px; font-weight: bold; color: #ffffff; margin-bottom: 6px; }
+        .splash-subtitle { font-size: 13px; color: #00d2ff; opacity: 0.9; }
+
+        /* هدر بالای صفحه */
+        .top-bar {
+            width: 100%; max-width: 400px;
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 8px 14px; background: rgba(255, 255, 255, 0.04);
+            border-radius: 16px; margin-bottom: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .badge-level {
+            background: linear-gradient(135deg, #d97706, #f59e0b);
+            padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; color: #fff;
+        }
+        .top-balance {
+            display: flex; align-items: center; gap: 8px;
+            background: rgba(0, 0, 0, 0.4); padding: 4px 12px;
+            border-radius: 20px; border: 1px solid rgba(255, 215, 0, 0.25);
+        }
+        .top-balance img { width: 22px; height: 22px; border-radius: 50%; }
+        .top-balance span { font-size: 15px; font-weight: bold; color: #ffd700; }
+
+        /* صفحات */
+        .page { display: none; width: 100%; max-width: 400px; flex-direction: column; align-items: center; }
+        .page.active { display: flex; }
+        .page-title { color: #00d2ff; margin: 5px 0 15px 0; text-align: right; width: 100%; font-size: 18px; }
+
+        /* کارت پروفایل در کیف پول / تنظیمات زبان */
+        .profile-card {
+            background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 20px; padding: 16px; width: 100%; margin-bottom: 12px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .btn-lang-selector {
+            background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #ef4444; padding: 8px 14px; border-radius: 12px; font-size: 13px; font-weight: bold;
+            cursor: pointer; display: flex; align-items: center; gap: 6px;
+        }
+
+        /* کارت استخراج */
+        .miner-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 24px; padding: 20px; width: 100%;
+            display: flex; flex-direction: column; align-items: center; margin-bottom: 15px;
+        }
+        .miner-header { width: 100%; display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .timer-badge { background: rgba(16, 185, 129, 0.15); color: #10b981; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; }
+        .miner-title { font-size: 13px; color: #9ca3af; }
+
+        .coin-wrapper { position: relative; width: 170px; height: 170px; margin: 10px 0; display: flex; align-items: center; justify-content: center; }
+        .coin-ring {
+            position: absolute; width: 100%; height: 100%; border-radius: 50%;
+            border: 4px solid rgba(0, 210, 255, 0.2); border-top: 4px solid #00d2ff;
+            animation: spin 8s linear infinite;
+        }
+        .coin-img { width: 135px; height: 135px; border-radius: 50%; border: 4px solid #ffd700; box-shadow: 0 0 30px rgba(255, 215, 0, 0.3); }
+
+        .pending-label { font-size: 12px; color: #9ca3af; margin-top: 10px; }
+        .pending-amount { font-size: 32px; font-weight: bold; color: #ffffff; margin: 4px 0; }
+        .usd-estimate { font-size: 12px; color: #6b7280; margin-bottom: 15px; }
+
+        .btn-claim {
+            background: #2563eb; color: #ffffff; border: none;
+            width: 100%; padding: 14px; border-radius: 14px;
+            font-size: 15px; font-weight: bold; cursor: pointer;
+            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3);
+        }
+        .btn-claim:active { background: #1d4ed8; transform: scale(0.98); }
+
+        .info-list { width: 100%; display: flex; flex-direction: column; gap: 8px; }
+        .info-item {
+            background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.06);
+            padding: 12px 16px; border-radius: 14px; display: flex; justify-content: space-between; align-items: center;
+        }
+        .info-item label { font-size: 13px; color: #9ca3af; }
+        .info-item span { font-size: 14px; font-weight: bold; color: #ffffff; }
+
+        /* لیست سطوح ماینر */
+        .levels-header {
+            width: 100%; display: flex; justify-content: space-between;
+            font-size: 12px; color: #6b7280; font-weight: bold; margin: 10px 0 8px 0;
+        }
+        .levels-list { width: 100%; display: flex; flex-direction: column; gap: 8px; }
+        .level-card-item {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 14px; padding: 12px 14px;
+            display: flex; justify-content: space-between; align-items: center;
+            cursor: pointer; transition: background 0.2s;
+        }
+        .level-card-item:active { background: rgba(255, 255, 255, 0.08); }
+        .level-card-item.active-level {
+            background: rgba(37, 99, 235, 0.15);
+            border: 1px solid rgba(37, 99, 235, 0.4);
+        }
+        .level-right { display: flex; align-items: center; gap: 10px; text-align: right; }
+        .level-badge-icon {
+            width: 40px; height: 40px; border-radius: 12px;
+            background: #1f2937; color: #00d2ff; font-weight: bold;
+            display: flex; align-items: center; justify-content: center; font-size: 12px;
+        }
+        .level-card-item.active-level .level-badge-icon { background: #2563eb; color: #fff; }
+        .level-info-title { font-size: 14px; font-weight: bold; color: #fff; }
+        .level-info-sub { font-size: 11px; color: #9ca3af; margin-top: 2px; }
+
+        .level-left { text-align: left; }
+        .level-usd { font-size: 13px; font-weight: bold; color: #ffffff; }
+        .level-status { font-size: 10px; padding: 2px 8px; border-radius: 6px; display: inline-block; margin-top: 3px; }
+        .status-active { background: rgba(37, 99, 235, 0.2); color: #3b82f6; }
+        .status-locked { background: rgba(156, 163, 175, 0.1); color: #9ca3af; }
+
+        /* پنل دوستان (دعوت نامه مینی‌اپ) */
+        .friend-hero-card {
+            background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 20px; padding: 20px; width: 100%; margin-bottom: 12px; text-align: center;
+        }
+        .friend-btns-row { display: flex; gap: 10px; margin-top: 15px; }
+        .btn-share { background: #2563eb; color: #fff; flex: 1; padding: 12px; border-radius: 12px; border: none; font-weight: bold; cursor: pointer; font-size: 14px; }
+        .btn-copy { background: rgba(255,255,255,0.1); color: #fff; flex: 1; padding: 12px; border-radius: 12px; border: none; font-weight: bold; cursor: pointer; font-size: 14px; }
+
+        .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; width: 100%; }
+        .stat-box { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 12px 6px; text-align: center; }
+        .stat-num { font-size: 18px; font-weight: bold; color: #ffd700; margin-bottom: 4px; }
+        .stat-lbl { font-size: 10px; color: #9ca3af; }
+
+        .team-list { width: 100%; display: flex; flex-direction: column; gap: 8px; }
+        .team-item {
+            background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 14px; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; text-align: right;
+        }
+
+        /* مدال‌های عمومی (Bottom Sheets) */
+        .bottom-sheet-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); display: none; justify-content: flex-end;
+            flex-direction: column; z-index: 10000; backdrop-filter: blur(5px);
+        }
+        .bottom-sheet-overlay.show { display: flex; }
+        .bottom-sheet {
+            background: #0f172a; border-radius: 24px 24px 0 0;
+            padding: 20px; width: 100%; max-width: 420px; margin: 0 auto;
+            border-top: 1px solid rgba(255,255,255,0.1); text-align: center;
+            animation: slideUp 0.3s ease-out; max-height: 85vh; overflow-y: auto;
+        }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+        .sheet-close {
+            width: 32px; height: 32px; border-radius: 50%; background: rgba(255,255,255,0.1);
+            color: #fff; border: none; font-size: 16px; cursor: pointer; float: right;
+        }
+        .sheet-title { font-size: 20px; font-weight: bold; margin: 10px 0 4px 0; }
+        .sheet-rate { font-size: 32px; font-weight: bold; color: #ffffff; margin: 8px 0 4px 0; }
+        .sheet-daily { color: #10b981; font-size: 13px; font-weight: bold; margin-bottom: 15px; }
+
+        .sheet-progress-box {
+            width: 100%; background: rgba(255,255,255,0.05); border-radius: 12px;
+            padding: 10px 14px; margin-bottom: 15px; display: flex; flex-direction: column; gap: 6px;
+        }
+        .sheet-progress-bar-bg { width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden; }
+        .sheet-progress-bar-fill { height: 100%; background: #2563eb; width: 0%; }
+
+        .sheet-table { width: 100%; margin-bottom: 15px; display: flex; flex-direction: column; gap: 8px; }
+        .sheet-row { display: flex; justify-content: space-between; font-size: 13px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 6px; }
+        .sheet-row label { color: #9ca3af; }
+        .sheet-row span { font-weight: bold; }
+
+        .sheet-notice {
+            background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2);
+            border-radius: 12px; padding: 10px; font-size: 11px; color: #10b981; margin-bottom: 15px; line-height: 1.5;
+        }
+
+        /* گزینه‌های زبان در مدال */
+        .lang-option {
+            background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 14px; padding: 12px 16px; margin-bottom: 8px;
+            display: flex; justify-content: space-between; align-items: center; cursor: pointer;
+        }
+        .lang-option:active { background: rgba(37, 99, 235, 0.2); }
+
+        /* مدال Level Up */
+        .levelup-modal {
+            background: #0f172a; border-radius: 28px; padding: 25px 20px;
+            width: 90%; max-width: 380px; margin: auto; text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+        }
+        .levelup-icon {
+            width: 100px; height: 100px; background: #2563eb; border-radius: 24px;
+            margin: 0 auto 15px auto; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            font-size: 40px; font-weight: bold; color: #fff; box-shadow: 0 0 30px rgba(37, 99, 235, 0.5);
+        }
+        .levelup-title { font-size: 28px; font-weight: bold; color: #fff; margin-bottom: 6px; }
+        .levelup-desc { font-size: 13px; color: #9ca3af; margin-bottom: 20px; line-height: 1.5; }
+        .levelup-box {
+            background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 16px; padding: 12px 16px; margin-bottom: 10px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+
+        .btn-action {
+            background: #2563eb; border: none; color: #fff; font-weight: bold;
+            padding: 12px 18px; border-radius: 12px; cursor: pointer; font-size: 14px; width: 100%;
+        }
+
+        /* منوی پایین */
+        .nav-bar {
+            display: flex; justify-content: space-around;
+            background: rgba(13, 18, 27, 0.95); width: 100%; padding: 8px 0;
+            border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(20px); position: fixed; bottom: 8px; left: 0; right: 0;
+            max-width: 410px; margin: 0 auto; z-index: 999;
+        }
+        .nav-btn {
+            background: none; border: none; color: #6b7280; font-size: 11px;
+            cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; font-weight: bold;
+        }
+        .nav-btn span { font-size: 18px; }
+        .nav-btn.active { color: #00d2ff; }
+    </style>
+</head>
+<body>
+
+    <!-- لودینگ اولیه -->
+    <div id="splash-screen">
+        <div class="splash-container">
+            <div class="spinner-ring"></div>
+            <img src="coin1.png" alt="SkyMiner Logo" class="splash-logo">
+        </div>
+        <div class="splash-title">SkyMiner</div>
+        <div class="splash-subtitle">...Connecting to the SkyMiner network</div>
+    </div>
+
+    <!-- هدر بالای صفحه -->
+    <div class="top-bar">
+        <div class="badge-level" id="topLevel">سطح 1</div>
+        <div class="top-balance">
+            <img src="coin1.png" alt="Coin">
+            <span id="topScore">0.00</span>
+        </div>
+    </div>
+
+    <!-- ۱. استخراج (Cloud Mining) -->
+    <div id="page-mining" class="page active">
+        <div class="miner-card">
+            <div class="miner-header">
+                <span class="timer-badge" id="txtActiveMining">🟢 در حال استخراج</span>
+                <span class="miner-title" id="minerLevelName">ماینر سطح 1</span>
+            </div>
+            
+            <div class="coin-wrapper">
+                <div class="coin-ring"></div>
+                <img src="coin1.png" alt="Coin" class="coin-img">
+            </div>
+
+            <div class="pending-label" id="txtPendingLabel">پاداش استخراج دریافت‌نشده</div>
+            <div class="pending-amount" id="pendingDisplay">0.000000</div>
+            <div class="usd-estimate" id="usdValue">≈ $0.0000</div>
+
+            <button class="btn-claim" id="btnClaim" onclick="claimMiningReward()">دریافت پاداش استخراج</button>
+        </div>
+
+        <div class="info-list">
+            <div class="info-item">
+                <label id="txtHourlyRateLbl">سرعت استخراج ساعتی</label>
+                <span id="hourlyRateDisplay">TH/s 0.20</span>
+            </div>
+            <div class="info-item">
+                <label id="txtDailyMaxLbl">تولید ۲۴ ساعته (حداکثر)</label>
+                <span id="dailyMaxDisplay">+5.0 سکه/روز</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ۲. ماینرها -->
+    <div id="page-miners" class="page">
+        <div class="levels-header">
+            <span id="txtLevelsHeaderRight">LEVELS</span>
+            <span id="txtLevelsHeaderLeft">Up to 1,000</span>
+        </div>
+        <div class="levels-list" id="levelsContainer"></div>
+    </div>
+
+    <!-- ۳. وظایف -->
+    <div id="page-tasks" class="page">
+        <h3 class="page-title" id="txtTasksTitle">🏆 پاداش‌ها و وظایف</h3>
+        <div class="card-panel" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; padding: 18px; width: 100%; text-align: right;">
+            <h3 style="color: #00d2ff; margin-top: 0;" id="txtDailyBonusTitle">حضور روزانه</h3>
+            <p style="color: #9ca3af; font-size: 13px;" id="txtDailyBonusDesc">هر روز سر بزنید و ۱۰ سکه پاداش بگیرید.</p>
+            <button class="btn-action" id="btnClaimDaily" onclick="claimDailyReward()">دریافت پاداش روزانه (+10 سکه)</button>
+        </div>
+    </div>
+
+    <!-- ۴. دوستان (Invite Friends - مطابق عکس‌های جدید) -->
+    <div id="page-friends" class="page">
+        <h3 class="page-title" id="txtFriendsPageTitle">👥 دعوت از دوستان</h3>
+        
+        <div class="friend-hero-card">
+            <div style="font-size: 32px; margin-bottom: 10px;">💖</div>
+            <h3 style="color: #fff; margin: 0 0 8px 0;" id="txtFriendCardTitle">دعوت از دوستان</h3>
+            <p style="color: #9ca3af; font-size: 12px; line-height: 1.5; margin: 0 0 15px 0;" id="txtFriendCardDesc">
+                Get +100 SkyMiner for every friend who starts mining, plus 10% of their mining output — forever.
+            </p>
+            <div class="friend-btns-row">
+                <button class="btn-share" id="btnShareRef" onclick="shareRefLink()">اشتراک‌گذاری ↗</button>
+                <button class="btn-copy" id="btnCopyRef" onclick="copyRefLink()">کپی 📋</button>
+            </div>
+        </div>
+
+        <!-- آمار تیم -->
+        <div class="stats-grid">
+            <div class="stat-box">
+                <div class="stat-num">0</div>
+                <div class="stat-lbl" id="txtStatPending">دریافت‌نشده</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-num" id="teamTotalCount">0</div>
+                <div class="stat-lbl" id="txtStatTotalTeam">کل اعضای تیم</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-num" id="teamActiveCount">0</div>
+                <div class="stat-lbl" id="txtStatQualified">واجد شرایط</div>
+            </div>
+        </div>
+
+        <!-- کارت استخراج تیمی -->
+        <div class="card-panel" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; padding: 16px; width: 100%; text-align: right; margin-bottom: 15px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <span style="font-size: 12px; color: #10b981; background: rgba(16,185,129,0.15); padding: 2px 8px; border-radius: 6px;">10%</span>
+                <span style="font-size: 13px; color: #9ca3af;" id="txtTeamMiningHeader">استخراج تیمی</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <span style="font-size: 12px; color: #6b7280;" id="txtTeamUsd">$0.00 ≈</span>
+                <span style="font-size: 22px; font-weight: bold; color: #ffd700;" id="teamCommissionBalance">SkyMiner 0.000</span>
+            </div>
+            <button class="btn-action" id="btnClaimTeam" onclick="alert('کمیسیونی برای دریافت موجود نیست!')">دریافت کمیسیون تیم</button>
+            <div style="font-size: 11px; color: #6b7280; text-align: center; margin-top: 8px;" id="txtTeamNotice">استخر کمیسیون آنی ۱۰٪ از بازده استخراج دوستان شما.</div>
+        </div>
+
+        <div style="width: 100%; text-align: right; font-size: 12px; color: #9ca3af; margin-bottom: 6px;" id="txtTeamListHeader">اعضای تیم</div>
+        <div class="team-list" id="teamListContainer">
+            <div style="color: #6b7280; font-size: 12px; padding: 15px; text-align: center;">هنوز دوستی دعوت نکرده‌اید.</div>
+        </div>
+    </div>
+
+    <!-- ۵. کیف پول و تنظیمات زبان -->
+    <div id="page-wallet" class="page">
+        <h3 class="page-title" id="txtWalletTitle">👛 کیف پول و تنظیمات</h3>
+        
+        <!-- دکمه انتخاب زبان (مشابه عکس مرجع) -->
+        <div class="profile-card">
+            <div style="display: flex; align-items: center; gap: 10px; text-align: right;">
+                <span style="font-size: 20px;">🌐</span>
+                <div>
+                    <div style="font-size: 13px; font-weight: bold; color: #fff;" id="txtLangSettingLbl">انتخاب زبان</div>
+                    <div style="font-size: 11px; color: #9ca3af;" id="currentLangDisplay">فارسی (Farsi)</div>
+                </div>
+            </div>
+            <button class="btn-lang-selector" onclick="openLanguageSheet()">
+                <span id="currentLangFlag">🇮🇷</span> تغيير <span style="font-size: 10px;">▼</span>
+            </button>
+        </div>
+
+        <div class="card-panel" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; padding: 18px; width: 100%; text-align: center;">
+            <p style="color: #9ca3af; margin:0;" id="txtWalletBalanceLbl">موجودی کل درون‌برنامه:</p>
+            <h2 id="walletScore" style="color: #ffd700; margin: 6px 0; font-size: 34px;">0.00</h2>
+            <p style="color: #10b981; font-size: 13px; margin-bottom: 15px;" id="walletUsd">≈ $0.00 دلار</p>
+            <button class="btn-action" id="btnWithdraw" onclick="alert('قابلیت برداشت به زودی فعال می‌شود!')">برداشت سکه‌ها 🚀</button>
+        </div>
+    </div>
+
+    <!-- مدال انتخاب زبان (شامل زبان‌های ژاپنی و چینی و بقیه) -->
+    <div class="bottom-sheet-overlay" id="langOverlay">
+        <div class="bottom-sheet">
+            <button class="sheet-close" onclick="closeLanguageSheet()">✕</button>
+            <div class="sheet-title" style="margin-bottom: 5px;">انتخاب زبان</div>
+            <div style="font-size: 12px; color: #9ca3af; margin-bottom: 15px;">زبان مورد نظر خود را برای مینی‌آپ انتخاب کنید</div>
+            
+            <div id="langListContainer">
+                <!-- لیست زبان‌ها به صورت پویا با جاوااسکریپت رندر می‌شود -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Sheet جزئیات سطح ماینر -->
+    <div class="bottom-sheet-overlay" id="sheetOverlay">
+        <div class="bottom-sheet">
+            <button class="sheet-close" onclick="closeSheet()">✕</button>
+            <div class="sheet-title" id="sheetLevelTitle">سطح 2</div>
+            <div style="font-size: 12px; color: #9ca3af;" id="txtSheetSpeedLbl">سرعت استخراج</div>
+            <div class="sheet-rate" id="sheetRateText">TH/s 0.24</div>
+            <div class="sheet-daily" id="sheetDailyText">+SkyMiner / day 6.0</div>
+
+            <div class="sheet-progress-box">
+                <div style="display: flex; justify-content: space-between; font-size: 11px; color: #9ca3af;">
+                    <span id="sheetUserHold">SkyMiner 0 / 101</span>
+                    <span id="txtSheetHoldTitle">دارایی‌های شما</span>
+                </div>
+                <div class="sheet-progress-bar-bg">
+                    <div class="sheet-progress-bar-fill" id="sheetProgressFill"></div>
+                </div>
+            </div>
+
+            <div class="sheet-table">
+                <div class="sheet-row">
+                    <span id="txtSheetReqLbl">موجودی لازم</span>
+                    <span id="sheetReqCoins">SkyMiner 101</span>
+                </div>
+                <div class="sheet-row">
+                    <span>Value</span>
+                    <span id="sheetReqValue">0.130$</span>
+                </div>
+                <div class="sheet-row">
+                    <span id="txtSheetDeficitLbl">کسری</span>
+                    <span style="color: #f59e0b;" id="sheetDeficit">SkyMiner ($0.08) 58.20</span>
+                </div>
+            </div>
+
+            <div class="sheet-notice" id="txtSheetNotice">
+                🛡️ سطوح به صورت خودکار از طریق اثبات نگهداری باز می‌شوند. کافی است توکن SkyMiner را نگه دارید.
+            </div>
+
+            <button class="btn-action" style="background: #0284c7;" id="btnBuyDex" onclick="alert('انتقال به صرافی DEX به زودی فعال می‌شود!')">خرید SkyMiner در صرافی DEX 🔗</button>
+        </div>
+    </div>
+
+    <!-- مودال Level Up -->
+    <div class="bottom-sheet-overlay" id="levelUpOverlay" style="align-items: center; justify-content: center;">
+        <div class="levelup-modal">
+            <div class="levelup-icon">
+                <span style="font-size: 12px; opacity: 0.8;" id="txtLuLevelLbl">سطح</span>
+                <span id="luLevelNum">49</span>
+            </div>
+            <div class="levelup-title">!Level up</div>
+            <div class="levelup-desc" id="txtLuDesc">ماینر شما سریع‌تر شد! توکن‌های SkyMiner بیشتری نگه دارید تا به سطوح بالاتر صعود کنید.</div>
+
+            <div class="levelup-box">
+                <div style="text-align: right;">
+                    <div style="font-size: 12px; color: #9ca3af;" id="txtLuNewPowerLbl">قدرت استخراج جدید</div>
+                    <div style="font-size: 15px; font-weight: bold; color: #fff;" id="luPower">TH/s 1.95</div>
+                </div>
+                <div style="color: #10b981; font-weight: bold; font-size: 13px;" id="luPowerDiff">+0.04</div>
+            </div>
+
+            <div class="levelup-box">
+                <div style="text-align: right;">
+                    <div style="font-size: 12px; color: #9ca3af;" id="txtLuNewDailyLbl">تولید روزانه جدید</div>
+                    <div style="font-size: 15px; font-weight: bold; color: #fff;" id="luDaily">SkyMiner 48.8</div>
+                </div>
+                <div style="color: #10b981; font-weight: bold; font-size: 13px;" id="luDailyDiff">day / +1.0</div>
+            </div>
+
+            <button class="btn-action" style="margin-top: 15px;" id="btnContinueMining" onclick="closeLevelUpModal()">Continue mining ⚡</button>
+        </div>
+    </div>
+
+    <!-- منوی پایین -->
+    <div class="nav-bar">
+        <button class="nav-btn active" onclick="switchPage('mining', this)"><span id="navIcon1">⛏️</span><span id="navTxt1">استخراج</span></button>
+        <button class="nav-btn" onclick="switchPage('miners', this)"><span id="navIcon2">⚡</span><span id="navTxt2">ماینرها</span></button>
+        <button class="nav-btn" onclick="switchPage('tasks', this)"><span id="navIcon3">🏆</span><span id="navTxt3">وظایف</span></button>
+        <button class="nav-btn" onclick="switchPage('friends', this)"><span id="navIcon4">👥</span><span id="navTxt4">دوستان</span></button>
+        <button class="nav-btn" onclick="switchPage('wallet', this)"><span id="navIcon5">👛</span><span id="navTxt5">کیف پول</span></button>
+    </div>
+
+    <script>
+        setTimeout(() => {
+            const splash = document.getElementById('splash-screen');
+            if(splash) {
+                splash.style.opacity = '0';
+                setTimeout(() => splash.remove(), 600);
+            }
+        }, 3000);
+
+        // دیکشنری کامل زبان‌ها (شامل ژاپنی و چینی)
+        const translations = {
+            fa: {
+                htmlDir: 'rtl',
+                activeMining: '🟢 در حال استخراج',
+                pendingLabel: 'پاداش استخراج دریافت‌نشده',
+                btnClaim: 'دریافت پاداش استخراج',
+                hourlyRateLbl: 'سرعت استخراج ساعتی',
+                dailyMaxLbl: 'تولید ۲۴ ساعته (حداکثر)',
+                levelsHeaderRight: 'LEVELS',
+                levelsHeaderLeft: 'Up to 1,000',
+                tasksTitle: '🏆 پاداش‌ها و وظایف',
+                dailyBonusTitle: 'حضور روزانه',
+                dailyBonusDesc: 'هر روز سر بزنید و ۱۰ سکه پاداش بگیرید.',
+                btnClaimDaily: 'دریافت پاداش روزانه (+10 سکه)',
+                friendsPageTitle: '👥 دعوت از دوستان',
+                friendCardTitle: 'دعوت از دوستان',
+                friendCardDesc: 'با دعوت از هر دوست، +100 اسکای‌ماینر و ۱۰٪ از بازده استخراج آن‌ها را تا ابد دریافت کنید.',
+                btnShare: 'اشتراک‌گذاری ↗',
+                btnCopy: 'کپی 📋',
+                statPending: 'دریافت‌نشده',
+                statTotalTeam: 'کل اعضای تیم',
+                statQualified: 'واجد شرایط',
+                teamMiningHeader: 'استخراج تیمی',
+                btnClaimTeam: 'دریافت کمیسیون تیم',
+                teamNotice: 'استخر کمیسیون آنی ۱۰٪ از بازده استخراج دوستان شما.',
+                teamListHeader: 'اعضای تیم',
+                walletTitle: '👛 کیف پول و تنظیمات',
+                langSettingLbl: 'انتخاب زبان',
+                walletBalanceLbl: 'موجودی کل درون‌برنامه:',
+                btnWithdraw: 'برداشت سکه‌ها 🚀',
+                sheetSpeedLbl: 'سرعت استخراج',
+                sheetHoldTitle: 'دارایی‌های شما',
+                sheetReqLbl: 'موجودی لازم',
+                sheetDeficitLbl: 'کسری',
+                sheetNotice: '🛡️ سطوح به صورت خودکار از طریق اثبات نگهداری باز می‌شوند. کافی است توکن SkyMiner را نگه دارید.',
+                btnBuyDex: 'خرید SkyMiner در صرافی DEX 🔗',
+                luLevelLbl: 'سطح',
+                luDesc: 'ماینر شما سریع‌تر شد! توکن‌های SkyMiner بیشتری نگه دارید تا به سطوح بالاتر صعود کنید.',
+                luNewPowerLbl: 'قدرت استخراج جدید',
+                luNewDailyLbl: 'تولید روزانه جدید',
+                btnContinueMining: 'Continue mining ⚡',
+                navTxt1: 'استخراج',
+                navTxt2: 'ماینرها',
+                navTxt3: 'وظایف',
+                navTxt4: 'دوستان',
+                navTxt5: 'کیف پول'
+            },
+            en: {
+                htmlDir: 'ltr',
+                activeMining: '🟢 Mining Active',
+                pendingLabel: 'Unclaimed Mining Reward',
+                btnClaim: 'Claim Mining Reward',
+                hourlyRateLbl: 'Hourly Mining Rate',
+                dailyMaxLbl: '24h Output (Max)',
+                levelsHeaderRight: 'LEVELS',
+                levelsHeaderLeft: 'Up to 1,000',
+                tasksTitle: '🏆 Tasks & Rewards',
+                dailyBonusTitle: 'Daily Check-in',
+                dailyBonusDesc: 'Visit daily and claim 10 SkyMiner coins.',
+                btnClaimDaily: 'Claim Daily Reward (+10)',
+                friendsPageTitle: '👥 Invite Friends',
+                friendCardTitle: 'Invite Friends',
+                friendCardDesc: 'Get +100 SkyMiner for every friend who starts mining, plus 10% of their mining output — forever.',
+                btnShare: 'Share ↗',
+                btnCopy: 'Copy 📋',
+                statPending: 'Unclaimed',
+                statTotalTeam: 'Total Team',
+                statQualified: 'Qualified',
+                teamMiningHeader: 'Team Mining',
+                btnClaimTeam: 'Claim Team Commission',
+                teamNotice: 'Instant 10% commission pool from your friends mining output.',
+                teamListHeader: 'Team Members',
+                walletTitle: '👛 Wallet & Settings',
+                langSettingLbl: 'Select Language',
+                walletBalanceLbl: 'Total In-App Balance:',
+                btnWithdraw: 'Withdraw Coins 🚀',
+                sheetSpeedLbl: 'Mining Speed',
+                sheetHoldTitle: 'Your Assets',
+                sheetReqLbl: 'Required Balance',
+                sheetDeficitLbl: 'Deficit',
+                sheetNotice: '🛡️ Levels are unlocked automatically via Proof of Hold. Just hold SkyMiner tokens.',
+                btnBuyDex: 'Buy SkyMiner on DEX 🔗',
+                luLevelLbl: 'Level',
+                luDesc: 'Your miner is faster now! Keep holding more SkyMiner to climb even higher.',
+                luNewPowerLbl: 'New Mining Power',
+                luNewDailyLbl: 'New Daily Output',
+                btnContinueMining: 'Continue mining ⚡',
+                navTxt1: 'Mining',
+                navTxt2: 'Miners',
+                navTxt3: 'Tasks',
+                navTxt4: 'Friends',
+                navTxt5: 'Wallet'
+            },
+            ar: {
+                htmlDir: 'rtl',
+                activeMining: '🟢 التعدين نشط',
+                pendingLabel: 'مکافأة التعدين غير المطالب بها',
+                btnClaim: 'استلام مکافأة التعدين',
+                hourlyRateLbl: 'معدل التعدين بالساعة',
+                dailyMaxLbl: 'إنتاج 24 ساعة (حد أقصى)',
+                levelsHeaderRight: 'LEVELS',
+                levelsHeaderLeft: 'Up to 1,000',
+                tasksTitle: '🏆 المهام والمكافآت',
+                dailyBonusTitle: 'تسجيل الدخول اليومي',
+                dailyBonusDesc: 'قم بزيارة يومياً واحصل على 10 عملات.',
+                btnClaimDaily: 'استلام المكافأة اليومية (+10)',
+                friendsPageTitle: '👥 دعوة الأصدقاء',
+                friendCardTitle: 'دعوة الأصدقاء',
+                friendCardDesc: 'احصل على +100 لكل صديق يبدأ التعدين، بالإضافة إلى 10% من إنتاجهم للأبد.',
+                btnShare: 'مشاركة ↗',
+                btnCopy: 'نسخ 📋',
+                statPending: 'غير مطالب به',
+                statTotalTeam: 'إجمالي الفريق',
+                statQualified: 'مؤهل',
+                teamMiningHeader: 'تعدين الفريق',
+                btnClaimTeam: 'استلام عمولة الفريق',
+                teamNotice: 'حوض عمولة فوري بنسبة 10% من إنتاج أصدقائك.',
+                teamListHeader: 'أعضاء الفريق',
+                walletTitle: '👛 المحفظة والإعدادات',
+                langSettingLbl: 'اختر اللغة',
+                walletBalanceLbl: 'إجمالي الرصيد داخل التطبيق:',
+                btnWithdraw: 'سحب العملات 🚀',
+                sheetSpeedLbl: 'سرعة التعدين',
+                sheetHoldTitle: 'أصولك',
+                sheetReqLbl: 'الرصيد المطلوب',
+                sheetDeficitLbl: 'العجز',
+                sheetNotice: '🛡️ يتم فتح المستويات تلقائياً عبر إثبات الاحتفاظ بتوكنات SkyMiner.',
+                btnBuyDex: 'شراء SkyMiner من المنصة 🔗',
+                luLevelLbl: 'مستوى',
+                luDesc: 'أصبح منجمك أسرع! احتفظ بالمزيد للصعود لمستويات أعلى.',
+                luNewPowerLbl: 'قوة التعدين الجديدة',
+                luNewDailyLbl: 'الإنتاج اليومي الجديد',
+                btnContinueMining: 'Continue mining ⚡',
+                navTxt1: 'التعدين',
+                navTxt2: 'المعدنون',
+                navTxt3: 'المهام',
+                navTxt4: 'الأصدقاء',
+                navTxt5: 'المحفظة'
+            },
+            ru: {
+                htmlDir: 'ltr',
+                activeMining: '🟢 Добыча активна',
+                pendingLabel: 'Неполученная награда',
+                btnClaim: 'Собрать награду',
+                hourlyRateLbl: 'Скорость добычи в час',
+                dailyMaxLbl: 'Выход за 24ч (Макс)',
+                levelsHeaderRight: 'LEVELS',
+                levelsHeaderLeft: 'Up to 1,000',
+                tasksTitle: '🏆 Задания и награды',
+                dailyBonusTitle: 'Ежедневный бонус',
+                dailyBonusDesc: 'Заходите каждый день и получайте 10 монет.',
+                btnClaimDaily: 'Получить бонус (+10)',
+                friendsPageTitle: '👥 Пригласить друзей',
+                friendCardTitle: 'Пригласить друзей',
+                friendCardDesc: 'Получайте +100 за каждого друга и 10% от их добычи навсегда.',
+                btnShare: 'Поделиться ↗',
+                btnCopy: 'Копировать 📋',
+                statPending: 'Не получено',
+                statTotalTeam: 'Всего в команде',
+                statQualified: 'Квалифицировано',
+                teamMiningHeader: 'Командный майнинг',
+                btnClaimTeam: 'Собрать комиссию',
+                teamNotice: 'Мгновенный пул комиссий 10% от добычи друзей.',
+                teamListHeader: 'Члены команды',
+                walletTitle: '👛 Кошелек и настройки',
+                langSettingLbl: 'Выбрать язык',
+                walletBalanceLbl: 'Общий баланс:',
+                btnWithdraw: 'Вывести монеты 🚀',
+                sheetSpeedLbl: 'Скорость майнинга',
+                sheetHoldTitle: 'Ваши активы',
+                sheetReqLbl: 'Требуемый баланс',
+                sheetDeficitLbl: 'Дефицит',
+                sheetNotice: '🛡️ Уровни разблокируются автоматически при удержании токенов SkyMiner.',
+                btnBuyDex: 'Купить SkyMiner на DEX 🔗',
+                luLevelLbl: 'Уровень',
+                luDesc: 'Ваш майнер стал быстрее! Удерживайте больше SkyMiner.',
+                luNewPowerLbl: 'Новая мощность',
+                luNewDailyLbl: 'Новый дневной доход',
+                btnContinueMining: 'Continue mining ⚡',
+                navTxt1: 'Добыча',
+                navTxt2: 'Майнеры',
+                navTxt3: 'Задания',
+                navTxt4: 'Друзья',
+                navTxt5: 'Кошелек'
+            },
+            tr: {
+                htmlDir: 'ltr',
+                activeMining: '🟢 Madencilik Aktif',
+                pendingLabel: 'Alınmamış Ödül',
+                btnClaim: 'Ödülü Al',
+                hourlyRateLbl: 'Saatlik Kazım Hızı',
+                dailyMaxLbl: '24 Saatlik Çıktı (Maks)',
+                levelsHeaderRight: 'LEVELS',
+                levelsHeaderLeft: 'Up to 1,000',
+                tasksTitle: '🏆 Görevler',
+                dailyBonusTitle: 'Günlük Giriş',
+                dailyBonusDesc: 'Her gün uğrayın ve 10 jeton kazanın.',
+                btnClaimDaily: 'Günlük Ödülü Al (+10)',
+                friendsPageTitle: '👥 Arkadaşları Davet Et',
+                friendCardTitle: 'Arkadaşları Davet Et',
+                friendCardDesc: 'Her arkadaş için +100 kazan ve kazımcı çıktı их %10unu sonsuza dek al.',
+                btnShare: 'Paylaş ↗',
+                btnCopy: 'Kopyala 📋',
+                statPending: 'Alınmamış',
+                statTotalTeam: 'Toplam Takım',
+                statQualified: 'Nitelikli',
+                teamMiningHeader: 'Takım Madenciliği',
+                btnClaimTeam: 'Komisyonu Al',
+                teamNotice: 'Arkadaşlarınızın kazım çıktısından anlık %10 komisyon havuzu.',
+                teamListHeader: 'Takım Üyeleri',
+                walletTitle: '👛 Cüzdan ve Ayarlar',
+                langSettingLbl: 'Dil Seçin',
+                walletBalanceLbl: 'Toplam Bakiye:',
+                btnWithdraw: 'Jetonları Çek 🚀',
+                sheetSpeedLbl: 'Kazım Hızı',
+                sheetHoldTitle: 'Varlıklarınız',
+                sheetReqLbl: 'Gerekli Bakiye',
+                sheetDeficitLbl: 'Açık',
+                sheetNotice: '🛡️ Seviyeler Proof of Hold ile otomatik açılır.',
+                btnBuyDex: 'DEX Üzerinden SkyMiner Satın Al 🔗',
+                luLevelLbl: 'Seviye',
+                luDesc: 'Madenciniz hızlandı! Daha yüksek seviyeler için SkyMiner tutun.',
+                luNewPowerLbl: 'Yeni Kazım Gücü',
+                luNewDailyLbl: 'Yeni Günlük Çıktı',
+                btnContinueMining: 'Continue mining ⚡',
+                navTxt1: 'Kazım',
+                navTxt2: 'Madenciler',
+                navTxt3: 'Görevler',
+                navTxt4: 'Arkadaşlar',
+                navTxt5: 'Cüzdan'
+            },
+            es: {
+                htmlDir: 'ltr',
+                activeMining: '🟢 Minería Activa',
+                pendingLabel: 'Recompensa No Reclamada',
+                btnClaim: 'Reclamar Recompensa',
+                hourlyRateLbl: 'Tasa de Minería Por Hora',
+                dailyMaxLbl: 'Producción de 24h (Máx)',
+                levelsHeaderRight: 'LEVELS',
+                levelsHeaderLeft: 'Up to 1,000',
+                tasksTitle: '🏆 Tareas y Recompensas',
+                dailyBonusTitle: 'Check-in Diario',
+                dailyBonusDesc: 'Visita diariamente y reclama 10 monedas.',
+                btnClaimDaily: 'Reclamar Bono Diario (+10)',
+                friendsPageTitle: '👥 Invitar Amigos',
+                friendCardTitle: 'Invitar Amigos',
+                friendCardDesc: 'Obtén +100 SkyMiner por cada amigo y el 10% de su producción para siempre.',
+                btnShare: 'Compartir ↗',
+                btnCopy: 'Copiar 📋',
+                statPending: 'No reclamado',
+                statTotalTeam: 'Equipo Total',
+                statQualified: 'Calificado',
+                teamMiningHeader: 'Minería en Equipo',
+                btnClaimTeam: 'Reclamar Comisión',
+                teamNotice: 'Pond instantáneo del 10% de la minería de tus amigos.',
+                teamListHeader: 'Miembros del Equipo',
+                walletTitle: '👛 Billetera y Ajustes',
+                langSettingLbl: 'Seleccionar Idioma',
+                walletBalanceLbl: 'Balance Total:',
+                btnWithdraw: 'Retirar Monedas 🚀',
+                sheetSpeedLbl: 'Velocidad de Minería',
+                sheetHoldTitle: 'Tus Activos',
+                sheetReqLbl: 'Balance Requerido',
+                sheetDeficitLbl: 'Déficit',
+                sheetNotice: '🛡️ Los niveles se desbloquean automáticamente manteniendo SkyMiner.',
+                btnBuyDex: 'Comprar SkyMiner en DEX 🔗',
+                luLevelLbl: 'Nivel',
+                luDesc: '¡Tu minero es más rápido! Sigue manteniendo SkyMiner.',
+                luNewPowerLbl: 'Nueva Potencia',
+                luNewDailyLbl: 'Nueva Producción Diaria',
+                btnContinueMining: 'Continue mining ⚡',
+                navTxt1: 'Minería',
+                navTxt2: 'Mineros',
+                navTxt3: 'Tareas',
+                navTxt4: 'Amigos',
+                navTxt5: 'Billetera'
+            },
+            id: {
+                htmlDir: 'ltr',
+                activeMining: '🟢 Penambangan Aktif',
+                pendingLabel: 'Hadiah Belum Diklaim',
+                btnClaim: 'Klaim Hadiah',
+                hourlyRateLbl: 'Kecepatan Per Jam',
+                dailyMaxLbl: 'Hasil 24 Jam (Maks)',
+                levelsHeaderRight: 'LEVELS',
+                levelsHeaderLeft: 'Up to 1,000',
+                tasksTitle: '🏆 Tugas & Hadiah',
+                dailyBonusTitle: 'Check-in Harian',
+                dailyBonusDesc: 'Kunjungi setiap hari dan dapatkan 10 koin.',
+                btnClaimDaily: 'Klaim Bonus Harian (+10)',
+                friendsPageTitle: '👥 Undang Teman',
+                friendCardTitle: 'Undang Teman',
+                friendCardDesc: 'Dapatkan +100 SkyMiner untuk setiap teman dan 10% hasil tambang mereka selamanya.',
+                btnShare: 'Bagikan ↗',
+                btnCopy: 'Salin 📋',
+                statPending: 'Belum diklaim',
+                statTotalTeam: 'Total Tim',
+                statQualified: 'Memenuhi Syarat',
+                teamMiningHeader: 'Penambangan Tim',
+                btnClaimTeam: 'Klaim Komisi',
+                teamNotice: 'Kumpulan komisi instan 10% dari hasil teman Anda.',
+                teamListHeader: 'Anggota Tim',
+                walletTitle: '👛 Dompet & Pengaturan',
+                langSettingLbl: 'Pilih Bahasa',
+                walletBalanceLbl: 'Total Saldo:',
+                btnWithdraw: 'Tarik Koin 🚀',
+                sheetSpeedLbl: 'Kecepatan Tambang',
+                sheetHoldTitle: 'Aset Anda',
+                sheetReqLbl: 'Saldo Diperlukan',
+                sheetDeficitLbl: 'Kekurangan',
+                sheetNotice: '🛡️ Level terbuka otomatis melalui Proof of Hold token SkyMiner.',
+                btnBuyDex: 'Beli SkyMiner di DEX 🔗',
+                luLevelLbl: 'Level',
+                luDesc: 'Penambang Anda lebih cepat! Terus simpan SkyMiner.',
+                luNewPowerLbl: 'Kekuatan Baru',
+                luNewDailyLbl: 'Hasil Harian Baru',
+                btnContinueMining: 'Continue mining ⚡',
+                navTxt1: 'Tambang',
+                navTxt2: 'Penambang',
+                navTxt3: 'Tugas',
+                navTxt4: 'Teman',
+                navTxt5: 'Dompet'
+            },
+            ja: {
+                htmlDir: 'ltr',
+                activeMining: '🟢 マイニング中',
+                pendingLabel: '未取得の報酬',
+                btnClaim: '報酬を受け取る',
+                hourlyRateLbl: '時間あたりの採掘速度',
+                dailyMaxLbl: '24時間の出力 (最大)',
+                levelsHeaderRight: 'LEVELS',
+                levelsHeaderLeft: 'Up to 1,000',
+                tasksTitle: '🏆 タスクと報酬',
+                dailyBonusTitle: 'デイリーチェックイン',
+                dailyBonusDesc: '毎日アクセスして10コインを獲得しましょう。',
+                btnClaimDaily: 'デイリー報酬を受け取る (+10)',
+                friendsPageTitle: '👥 友達を招待',
+                friendCardTitle: '友達を招待',
+                friendCardDesc: '友達がマイニングを開始するごとに+100獲得し、さらに採掘量の10%を永久に獲得できます。',
+                btnShare: 'シェア ↗',
+                btnCopy: 'コピー 📋',
+                statPending: '未取得',
+                statTotalTeam: 'チーム合計',
+                statQualified: '条件達成',
+                teamMiningHeader: 'チームマイニング',
+                btnClaimTeam: 'チーム報酬を受け取る',
+                teamNotice: '友達の採掘量からの10%インスタントコミッション。',
+                teamListHeader: 'チームメンバー',
+                walletTitle: '👛 ウォレットと設定',
+                langSettingLbl: '言語を選択',
+                walletBalanceLbl: '総残高:',
+                btnWithdraw: '出金する 🚀',
+                sheetSpeedLbl: '採掘速度',
+                sheetHoldTitle: 'あなたの資産',
+                sheetReqLbl: '必要な残高',
+                sheetDeficitLbl: '不足分',
+                sheetNotice: '🛡️ レベルはトークンの保持（Proof of Hold）によって自動的に解放されます。',
+                btnBuyDex: 'DEXでSkyMinerを購入 🔗',
+                luLevelLbl: 'レベル',
+                luDesc: 'マイナーがスピードアップしました！',
+                luNewPowerLbl: '新しい採掘パワー',
+                luNewDailyLbl: '新しい毎日の出力',
+                btnContinueMining: 'Continue mining ⚡',
+                navTxt1: '採掘',
+                navTxt2: 'マイナー',
+                navTxt3: 'タスク',
+                navTxt4: '友達',
+                navTxt5: 'ウォレット'
+            },
+            zh: {
+                htmlDir: 'ltr',
+                activeMining: '🟢 正在挖矿',
+                pendingLabel: '未领取的挖矿奖励',
+                btnClaim: '领取挖矿奖励',
+                hourlyRateLbl: '每小时挖矿速度',
+                dailyMaxLbl: '24小时产出 (最大)',
+                levelsHeaderRight: 'LEVELS',
+                levelsHeaderLeft: 'Up to 1,000',
+                tasksTitle: '🏆 任务与奖励',
+                dailyBonusTitle: '每日签到',
+                dailyBonusDesc: '每天访问并领取 10 个代币。',
+                btnClaimDaily: '领取每日奖励 (+10)',
+                friendsPageTitle: '👥 邀请好友',
+                friendCardTitle: '邀请好友',
+                friendCardDesc: '每邀请一位好友即可获得 +100，并永久获得其挖矿产出的 10%。',
+                btnShare: '分享 ↗',
+                btnCopy: '复制 📋',
+                statPending: '未领取',
+                statTotalTeam: '团队总人数',
+                statQualified: '符合条件',
+                teamMiningHeader: '团队挖矿',
+                btnClaimTeam: '领取团队佣金',
+                teamNotice: '来自好友挖矿产出的 10% 即时佣金池。',
+                teamListHeader: '团队成员',
+                walletTitle: '👛 钱包与设置',
+                langSettingLbl: '选择语言',
+                walletBalanceLbl: '应用内总余额:',
+                btnWithdraw: '提现代币 🚀',
+                sheetSpeedLbl: '挖矿速度',
+                sheetHoldTitle: '您的资产',
+                sheetReqLbl: '所需余额',
+                sheetDeficitLbl: '差额',
+                sheetNotice: '🛡️ 等级通过持仓证明（Proof of Hold）自动解锁，只需持有 SkyMiner 代币。',
+                btnBuyDex: '在 DEX 购买 SkyMiner 🔗',
+                luLevelLbl: '等级',
+                luDesc: '您的矿工现在更快了！持有更多代币以攀升至更高等级。',
+                luNewPowerLbl: '新挖矿算力',
+                luNewDailyLbl: '新每日产出',
+                btnContinueMining: 'Continue mining ⚡',
+                navTxt1: '挖矿',
+                navTxt2: '矿工',
+                navTxt3: '任务',
+                navTxt4: '好友',
+                navTxt5: '钱包'
+            }
+        };
+
+        const languagesList = [
+            { code: 'en', name: 'English', native: 'English', flag: '🇬🇧' },
+            { code: 'ar', name: 'Arabic', native: 'العربية', flag: '🇸🇦' },
+            { code: 'fa', name: 'Farsi', native: 'فارسی', flag: '🇮🇷' },
+            { code: 'ru', name: 'Russian', native: 'Русский', flag: '🇷🇺' },
+            { code: 'tr', name: 'Turkish', native: 'Türkçe', flag: '🇹🇷' },
+            { code: 'es', name: 'Spanish', native: 'Español', flag: '🇪🇸' },
+            { code: 'id', name: 'Indonesian', native: 'Bahasa Indonesia', flag: '🇮🇩' },
+            { code: 'ja', name: 'Japanese', native: '日本語', flag: '🇯🇵' },
+            { code: 'zh', name: 'Chinese', native: '中文', flag: '🇨🇳' }
+        ];
+
+        let currentLang = localStorage.getItem('app_lang') || 'fa';
+
+        function setLanguage(langCode) {
+            currentLang = langCode;
+            localStorage.setItem('app_lang', langCode);
+            const t = translations[langCode] || translations['fa'];
+
+            document.getElementById('htmlRoot').setAttribute('dir', t.htmlDir);
+            document.getElementById('txtActiveMining').innerText = t.activeMining;
+            document.getElementById('txtPendingLabel').innerText = t.pendingLabel;
+            document.getElementById('btnClaim').innerText = t.btnClaim;
+            document.getElementById('txtHourlyRateLbl').innerText = t.hourlyRateLbl;
+            document.getElementById('txtDailyMaxLbl').innerText = t.dailyMaxLbl;
+            document.getElementById('txtLevelsHeaderRight').innerText = t.levelsHeaderRight;
+            document.getElementById('txtLevelsHeaderLeft').innerText = t.levelsHeaderLeft;
+            document.getElementById('txtTasksTitle').innerText = t.tasksTitle;
+            document.getElementById('txtDailyBonusTitle').innerText = t.dailyBonusTitle;
+            document.getElementById('txtDailyBonusDesc').innerText = t.dailyBonusDesc;
+            document.getElementById('btnClaimDaily').innerText = t.btnClaimDaily;
+            document.getElementById('txtFriendsPageTitle').innerText = t.friendsPageTitle;
+            document.getElementById('txtFriendCardTitle').innerText = t.friendCardTitle;
+            document.getElementById('txtFriendCardDesc').innerText = t.friendCardDesc;
+            document.getElementById('btnShareRef').innerText = t.btnShare;
+            document.getElementById('btnCopyRef').innerText = t.btnCopy;
+            document.getElementById('txtStatPending').innerText = t.statPending;
+            document.getElementById('txtStatTotalTeam').innerText = t.statTotalTeam;
+            document.getElementById('txtStatQualified').innerText = t.statQualified;
+            document.getElementById('txtTeamMiningHeader').innerText = t.teamMiningHeader;
+            document.getElementById('btnClaimTeam').innerText = t.btnClaimTeam;
+            document.getElementById('txtTeamNotice').innerText = t.teamNotice;
+            document.getElementById('txtTeamListHeader').innerText = t.teamListHeader;
+            document.getElementById('txtWalletTitle').innerText = t.walletTitle;
+            document.getElementById('txtLangSettingLbl').innerText = t.langSettingLbl;
+            document.getElementById('txtWalletBalanceLbl').innerText = t.walletBalanceLbl;
+            document.getElementById('btnWithdraw').innerText = t.btnWithdraw;
+            document.getElementById('txtSheetSpeedLbl').innerText = t.sheetSpeedLbl;
+            document.getElementById('txtSheetHoldTitle').innerText = t.sheetHoldTitle;
+            document.getElementById('txtSheetReqLbl').innerText = t.sheetReqLbl;
+            document.getElementById('txtSheetDeficitLbl').innerText = t.sheetDeficitLbl;
+            document.getElementById('txtSheetNotice').innerText = t.sheetNotice;
+            document.getElementById('btnBuyDex').innerText = t.btnBuyDex;
+            document.getElementById('txtLuLevelLbl').innerText = t.luLevelLbl;
+            document.getElementById('txtLuDesc').innerText = t.luDesc;
+            document.getElementById('txtLuNewPowerLbl').innerText = t.luNewPowerLbl;
+            document.getElementById('txtLuNewDailyLbl').innerText = t.luNewDailyLbl;
+            document.getElementById('btnContinueMining').innerText = t.btnContinueMining;
+            document.getElementById('navTxt1').innerText = t.navTxt1;
+            document.getElementById('navTxt2').innerText = t.navTxt2;
+            document.getElementById('navTxt3').innerText = t.navTxt3;
+            document.getElementById('navTxt4').innerText = t.navTxt4;
+            document.getElementById('navTxt5').innerText = t.navTxt5;
+
+            const activeLangObj = languagesList.find(l => l.code === langCode) || languagesList[2];
+            document.getElementById('currentLangDisplay').innerText = `${activeLangObj.native} (${activeLangObj.name})`;
+            document.getElementById('currentLangFlag').innerText = activeLangObj.flag;
+
+            closeLanguageSheet();
+            updateUI();
+        }
+
+        function openLanguageSheet() {
+            const container = document.getElementById('langListContainer');
+            let html = '';
+            languagesList.forEach(l => {
+                const isSelected = l.code === currentLang;
+                html += `
+                    <div class="lang-option" onclick="setLanguage('${l.code}')">
+                        <div style="display: flex; align-items: center; gap: 10px; text-align: right;">
+                            <span style="font-size: 22px;">${l.flag}</span>
+                            <div>
+                                <div style="font-size: 14px; font-weight: bold; color: #fff;">${l.native}</div>
+                                <div style="font-size: 11px; color: #9ca3af;">${l.name}</div>
+                            </div>
+                        </div>
+                        <div>${isSelected ? '✅' : ''}</div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+            document.getElementById('langOverlay').classList.add('show');
+        }
+
+        function closeLanguageSheet() {
+            document.getElementById('langOverlay').classList.remove('show');
+        }
+
+        // قیمت پایه زنده و پویا
+        let TOKEN_PRICE_USD = 0.004;
+
+        const SUPABASE_URL = 'https://flogzyhropeajugvlshy.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_tf_veYsAmwHeuN0njONEPQ_oqSwupYp';
+        let supabaseClient = null;
+        try { if (window.supabase) supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); } catch (e) {}
+
+        const tg = window.Telegram && window.Telegram.WebApp;
+        if (tg) { tg.ready(); tg.expand(); }
+
+        const user = tg && tg.initDataUnsafe && tg.initDataUnsafe.user ? tg.initDataUnsafe.user : { id: 'guest_100', username: 'کاربر' };
+        const telegramId = String(user.id);
+
+        function generateLevels() {
+            const list = [
+                { level: 1, minCoins: 0, rate: 0.20, daily: '5.0' },
+                { level: 2, minCoins: 101, rate: 0.24, daily: '6.0' },
+                { level: 3, minCoins: 102, rate: 0.27, daily: '6.8' },
+                { level: 4, minCoins: 105, rate: 0.31, daily: '7.8' },
+                { level: 5, minCoins: 109, rate: 0.35, daily: '8.8' },
+                { level: 6, minCoins: 113, rate: 0.38, daily: '9.5' },
+                { level: 7, minCoins: 118, rate: 0.42, daily: '10.5' },
+                { level: 8, minCoins: 123, rate: 0.46, daily: '11.5' },
+                { level: 9, minCoins: 130, rate: 0.49, daily: '12.3' },
+                { level: 10, minCoins: 137, rate: 0.53, daily: '13.3' }
+            ];
+
+            let currentCoins = 137;
+            let currentRate = 0.53;
+            let currentDaily = 13.3;
+
+            for (let i = 11; i <= 1000; i++) {
+                currentCoins = Math.floor(currentCoins * 1.06);
+                currentRate = parseFloat((currentRate * 1.05).toFixed(2));
+                currentDaily = parseFloat((currentDaily * 1.05).toFixed(1));
+                list.push({
+                    level: i,
+                    minCoins: currentCoins,
+                    rate: currentRate,
+                    daily: String(currentDaily)
+                });
+            }
+            return list;
+        }
+
+        const levelsData = generateLevels();
+
+        let score = parseFloat(localStorage.getItem('game_score')) || 0;
+        let pendingReward = parseFloat(localStorage.getItem('pending_reward')) || 0;
+        let lastSyncTime = parseInt(localStorage.getItem('last_sync_time')) || Date.now();
+        let currentActiveLevel = parseInt(localStorage.getItem('user_level')) || 1;
+
+        function calculateLevel() {
+            let lvl = 1;
+            for (let i = 0; i < levelsData.length; i++) {
+                if (score >= levelsData[i].minCoins) {
+                    lvl = levelsData[i].level;
+                } else {
+                    break;
+                }
+            }
+            return lvl;
+        }
+
+        function getCurrentConfig() {
+            const lvl = calculateLevel();
+            return levelsData.find(l => l.level === lvl) || levelsData[0];
+        }
+
+        setInterval(() => {
+            const now = Date.now();
+            const elapsed = (now - lastSyncTime) / 1000;
+            lastSyncTime = now;
+
+            const config = getCurrentConfig();
+            const ratePerSec = config.rate / 3600;
+            const maxPending = config.rate * 24;
+
+            if (pendingReward < maxPending) {
+                pendingReward += ratePerSec * elapsed;
+                if (pendingReward > maxPending) pendingReward = maxPending;
+            }
+
+            localStorage.setItem('pending_reward', pendingReward);
+            localStorage.setItem('last_sync_time', lastSyncTime);
+            updateUI();
+        }, 1000);
+
+        function updateUI() {
+            const lvl = calculateLevel();
+            
+            if (lvl > currentActiveLevel) {
+                const prevConfig = levelsData.find(l => l.level === currentActiveLevel) || levelsData[0];
+                const newConfig = levelsData.find(l => l.level === lvl) || levelsData[0];
+                triggerLevelUpModal(newConfig, prevConfig);
+                currentActiveLevel = lvl;
+                localStorage.setItem('user_level', currentActiveLevel);
+            }
+
+            const config = getCurrentConfig();
+
+            document.getElementById('topScore').innerText = score.toFixed(2);
+            document.getElementById('walletScore').innerText = score.toFixed(2);
+            document.getElementById('topLevel').innerText = `سطح ${lvl}`;
+            document.getElementById('minerLevelName').innerText = `ماینر سطح ${lvl}`;
+
+            const walletUsdVal = (score * TOKEN_PRICE_USD).toFixed(2);
+            document.getElementById('walletUsd').innerText = `≈ $${walletUsdVal} دلار`;
+
+            document.getElementById('pendingDisplay').innerText = pendingReward.toFixed(6);
+            document.getElementById('usdValue').innerText = `≈ $${(pendingReward * TOKEN_PRICE_USD).toFixed(4)}`;
+
+            document.getElementById('hourlyRateDisplay').innerText = `TH/s ${config.rate.toFixed(2)}`;
+            document.getElementById('dailyMaxDisplay').innerText = `+${config.daily} سکه/روز`;
+
+            renderLevelsList(lvl);
+        }
+
+        function renderLevelsList(currentLvl) {
+            const container = document.getElementById('levelsContainer');
+            if (!container) return;
+
+            const start = Math.max(0, currentLvl - 2);
+            const end = Math.min(levelsData.length, currentLvl + 25);
+            const visibleLevels = levelsData.slice(start, end);
+
+            let html = '';
+            visibleLevels.forEach(item => {
+                const isActive = item.level === currentLvl;
+                const isUnlocked = score >= item.minCoins;
+                const usdValue = (item.minCoins * TOKEN_PRICE_USD).toFixed(3);
+
+                let statusBadge = '';
+                if (isActive) {
+                    statusBadge = '<span class="level-status status-active">فعلی</span>';
+                } else if (isUnlocked) {
+                    statusBadge = '<span class="level-status status-active">باز</span>';
+                } else {
+                    const diff = (item.minCoins - score).toFixed(1);
+                    statusBadge = `<span class="level-status status-locked">نیازمند ${diff}</span>`;
+                }
+
+                html += `
+                    <div class="level-card-item ${isActive ? 'active-level' : ''}" onclick="openLevelSheet(${item.level})">
+                        <div class="level-right">
+                            <div class="level-badge-icon">LV ${item.level}</div>
+                            <div>
+                                <div class="level-info-title">سطح ${item.level}</div>
+                                <div class="level-info-sub">
+                                    ${isUnlocked ? 'فعال TH/s +' + item.rate : 'SkyMiner ' + item.minCoins + ' 🔒 TH/s +' + item.rate + '/day ' + item.daily}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="level-left">
+                            <div class="level-usd">${usdValue}$</div>
+                            ${statusBadge}
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        function openLevelSheet(levelNum) {
+            const target = levelsData.find(l => l.level === levelNum);
+            if (!target) return;
+
+            const reqVal = (target.minCoins * TOKEN_PRICE_USD).toFixed(3);
+            const deficit = Math.max(0, target.minCoins - score);
+            const deficitUsd = (deficit * TOKEN_PRICE_USD).toFixed(2);
+            const progress = target.minCoins > 0 ? Math.min(100, (score / target.minCoins) * 100) : 100;
+
+            document.getElementById('sheetLevelTitle').innerText = `سطح ${target.level}`;
+            document.getElementById('sheetRateText').innerText = `TH/s ${target.rate}`;
+            document.getElementById('sheetDailyText').innerText = `SkyMiner / day ${target.daily}+`;
+
+            document.getElementById('sheetUserHold').innerText = `SkyMiner ${score.toFixed(1)} / ${target.minCoins}`;
+            document.getElementById('sheetProgressFill').style.width = progress + '%';
+
+            document.getElementById('sheetReqCoins').innerText = `SkyMiner ${target.minCoins}`;
+            document.getElementById('sheetReqValue').innerText = `${reqVal}$`;
+            document.getElementById('sheetDeficit').innerText = `SkyMiner ($${deficitUsd}) ${deficit.toFixed(2)}`;
+
+            document.getElementById('sheetOverlay').classList.add('show');
+        }
+
+        function closeSheet() {
+            document.getElementById('sheetOverlay').classList.remove('show');
+        }
+
+        function triggerLevelUpModal(newCfg, prevCfg) {
+            document.getElementById('luLevelNum').innerText = newCfg.level;
+            document.getElementById('luPower').innerText = `TH/s ${newCfg.rate}`;
+            document.getElementById('luPowerDiff').innerText = `+${(newCfg.rate - prevCfg.rate).toFixed(2)}`;
+            document.getElementById('luDaily').innerText = `SkyMiner ${newCfg.daily}`;
+            document.getElementById('luDailyDiff').innerText = `day / +${(parseFloat(newCfg.daily) - parseFloat(prevCfg.daily)).toFixed(1)}`;
+            
+            document.getElementById('levelUpOverlay').classList.add('show');
+            if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+        }
+
+        function closeLevelUpModal() {
+            document.getElementById('levelUpOverlay').classList.remove('show');
+        }
+
+        function claimMiningReward() {
+            if (pendingReward <= 0) return;
+            score += pendingReward;
+            pendingReward = 0;
+
+            localStorage.setItem('game_score', score);
+            localStorage.setItem('pending_reward', 0);
+            updateUI();
+
+            if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+            saveToCloud();
+        }
+
+        function claimDailyReward() {
+            const today = new Date().toDateString();
+            if (localStorage.getItem('last_daily') === today) {
+                alert('امروز پاداش روزانه را دریافت کرده‌اید!');
+                return;
+            }
+            score += 10;
+            localStorage.setItem('last_daily', today);
+            localStorage.setItem('game_score', score);
+            updateUI();
+            alert('۱۰ سکه پاداش روزانه اضافه شد! 🎉');
+            saveToCloud();
+        }
+
+        function copyRefLink() {
+            const refLink = `https://t.me/Gemeeeeee12_bot?start=ref_${telegramId}`;
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(refLink).then(() => {
+                    alert('لینک دعوت کپی شد!');
+                });
+            } else {
+                alert('لینک دعوت شما: ' + refLink);
+            }
+        }
+
+        function shareRefLink() {
+            const refLink = `https://t.me/Gemeeeeee12_bot?start=ref_${telegramId}`;
+            if (tg && tg.openTelegramLink) {
+                tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${encodeURIComponent('Join SkyMiner and start mining with me!')}`);
+            } else {
+                copyRefLink();
+            }
+        }
+
+        function switchPage(pageName, btn) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+
+            document.getElementById('page-' + pageName).classList.add('active');
+            btn.classList.add('active');
+
+            if (tg && tg.HapticFeedback) tg.HapticFeedback.selectionChanged();
+        }
+
+        async function saveToCloud() {
+            if (!supabaseClient) return;
+            try {
+                await supabaseClient.from('users').update({ score: score, level: calculateLevel() }).eq('telegram_id', telegramId);
+            } catch (e) {}
+        }
+
+        // بارگذاری اولیه زبان ذخیره‌شده
+        setLanguage(currentLang);
+    </script>
+</body>
+</html>
